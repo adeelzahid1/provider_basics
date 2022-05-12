@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:provider_basics/model/babies.dart';
 import 'package:provider_basics/model/dog.dart';
 
 void main() {
@@ -11,10 +12,22 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<Dog>(
-      create: (context) => Dog(name: 'dog04', breed: 'breed04'),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<Dog>(
+          create: (context) => Dog(name: 'dog06', breed: 'breed06', age: 3),
+        ),
+        FutureProvider<int>(
+          initialData: 0,
+          create: (context) {
+            final int dogAge = context.read<Dog>().age;
+            final babies = Babies(age: dogAge);
+            return babies.getBabies();
+          },
+        ),
+      ],
       child: MaterialApp(
-        title: 'Provider 04',
+        title: 'Provider 06',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           primarySwatch: Colors.blue,
@@ -37,7 +50,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Provider 04'),
+        title: Text('Provider 05'),
       ),
       body: Center(
         child: Column(
@@ -45,11 +58,11 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '- name: ${Provider.of<Dog>(context).name}',
-              style: const TextStyle(fontSize: 20.0),
+              '- name: ${context.watch<Dog>().name}',
+              style: TextStyle(fontSize: 20.0),
             ),
-            const SizedBox(height: 10.0),
-            const BreedAndAge(),
+            SizedBox(height: 10.0),
+            BreedAndAge(),
           ],
         ),
       ),
@@ -67,11 +80,11 @@ class BreedAndAge extends StatelessWidget {
     return Column(
       children: [
         Text(
-          '- breed: ${Provider.of<Dog>(context).breed}',
-          style: const TextStyle(fontSize: 20.0),
+          '- breed: ${context.select<Dog, String>((Dog dog) => dog.breed)}',
+          style: TextStyle(fontSize: 20.0),
         ),
-        const SizedBox(height: 10.0),
-        const Age(),
+        SizedBox(height: 10.0),
+        Age(),
       ],
     );
   }
@@ -87,13 +100,18 @@ class Age extends StatelessWidget {
     return Column(
       children: [
         Text(
-          '- age: ${Provider.of<Dog>(context).age}',
-          style: const TextStyle(fontSize: 20.0),
+          '- age: ${context.select<Dog, int>((Dog dog) => dog.age)}',
+          style: TextStyle(fontSize: 20.0),
         ),
-        const SizedBox(height: 20.0),
+        SizedBox(height: 10.0),
+        Text(
+          '- number of babies: ${context.read<int>()}',
+          style: TextStyle(fontSize: 20.0),
+        ),
+        SizedBox(height: 20.0),
         ElevatedButton(
-          onPressed: () => Provider.of<Dog>(context, listen: false).grow(),
-          child: const Text(
+          onPressed: () => context.read<Dog>().grow(),
+          child: Text(
             'Grow',
             style: TextStyle(fontSize: 20.0),
           ),
