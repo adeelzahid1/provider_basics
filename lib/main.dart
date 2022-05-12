@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:provider_basics/model/babies.dart';
-import 'package:provider_basics/model/dog.dart';
+import 'package:provider_basics/pages/success.dart';
+import 'package:provider_basics/provider/app_provider.dart';
+
 
 
 void main() {
@@ -13,10 +14,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<Dog>(
-      create: (context) => Dog(name: 'dog08', breed: 'breed08', age: 3),
+    return ChangeNotifierProvider<AppProvider>(
+      create: (_) => AppProvider(),
       child: MaterialApp(
-        title: 'Provider 08',
+        title: 'addListener of ChangeNotifier',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           primarySwatch: Colors.blue,
@@ -35,90 +36,141 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  AutovalidateMode autovalidateMode = AutovalidateMode.disabled;
+  String? searchTerm;
+  late final AppProvider appProv;
+
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Provider 08'),
-      ),
-      body: Consumer<Dog>(
-        builder: (BuildContext context, Dog dog, Widget? child) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                child!,
-                SizedBox(height: 10.0),
-                Text(
-                  '- name: ${dog.name}',
-                  style: TextStyle(fontSize: 20.0),
-                ),
-                SizedBox(height: 10.0),
-                BreedAndAge(),
-              ],
-            ),
+  void initState() {
+    super.initState();
+    appProv = context.read<AppProvider>();
+    appProv.addListener(appListener);
+  }
+
+  void appListener() {
+    if (appProv.state == AppState.success) {
+      Navigator.push(context, MaterialPageRoute(
+        builder: (context) {
+          return const SuccessPage();
+        },
+      ));
+    } else if (appProv.state == AppState.error) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return const AlertDialog(
+            content: Text('Something went wrong'),
           );
         },
-        child: Text(
-          'I like dogs very much',
-          style: TextStyle(fontSize: 20.0),
-        ),
-      ),
-    );
+      );
+    }
   }
-}
 
-class BreedAndAge extends StatelessWidget {
-  const BreedAndAge({
-    Key? key,
-  }) : super(key: key);
+  @override
+  void dispose() {
+    appProv.removeListener(appListener);
+    super.dispose();
+  }
+
+  void submit() {
+    setState(() {
+      autovalidateMode = AutovalidateMode.always;
+    });
+
+    final form = formKey.currentState;
+
+    if (form == null || !form.validate()) return;
+
+    form.save();
+
+    context.read<AppProvider>().getResult(searchTerm!);
+    // Navigator.push(context, MaterialPageRoute(
+    //   builder: (context) {
+    //     return SuccessPage();
+    //   },
+    // ));
+
+    // showDialog(
+    //   context: context,
+    //   builder: (context) {
+    //     return AlertDialog(
+    //       content: Text('Something went wrong'),
+    //     );
+    //   },
+    // );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<Dog>(
-      builder: (_, Dog dog, __) {
-        return Column(
-          children: [
-            Text(
-              '- breed: ${dog.breed}',
-              style: TextStyle(fontSize: 20.0),
-            ),
-            SizedBox(height: 10.0),
-            Age(),
-          ],
-        );
-      },
-    );
-  }
-}
+    final appState = context.watch<AppProvider>().state;
 
-class Age extends StatelessWidget {
-  const Age({
-    Key? key,
-  }) : super(key: key);
+    // if (appState == AppState.success) {
+    //   WidgetsBinding.instance!.addPostFrameCallback((_) {
+    //     Navigator.push(context, MaterialPageRoute(
+    //       builder: (context) {
+    //         return SuccessPage();
+    //       },
+    //     ));
+    //   });
+    // } else if (appState == AppState.error) {
+    //   WidgetsBinding.instance!.addPostFrameCallback((_) {
+    //     showDialog(
+    //       context: context,
+    //       builder: (context) {
+    //         return AlertDialog(
+    //           content: Text('Something went wrong'),
+    //         );
+    //       },
+    //     );
+    //   });
+    // }
 
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<Dog>(
-      builder: (_, dog, __) {
-        return Column(
-          children: [
-            Text(
-              '- age: ${dog.age}',
-              style: TextStyle(fontSize: 20.0),
-            ),
-            SizedBox(height: 20.0),
-            ElevatedButton(
-              onPressed: () => dog.grow(),
-              child: Text(
-                'Grow',
-                style: TextStyle(fontSize: 20.0),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30.0),
+            child: Form(
+              key: formKey,
+              autovalidateMode: autovalidateMode,
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  TextFormField(
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      label: Text('Search'),
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    validator: (String? value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Search term required';
+                      }
+                      return null;
+                    },
+                    onSaved: (String? value) {
+                      searchTerm = value;
+                    },
+                  ),
+                  const SizedBox(height: 20.0),
+                  ElevatedButton(
+                    child: Text(
+                      appState == AppState.loading
+                          ? 'Loading...'
+                          : 'Get Result',
+                      style: const TextStyle(fontSize: 24.0),
+                    ),
+                    onPressed: appState == AppState.loading ? null : submit,
+                  ),
+                ],
               ),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ),
     );
   }
 }
